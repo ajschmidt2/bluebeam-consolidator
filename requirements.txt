@@ -1,0 +1,6 @@
+streamlit>=1.32
+pandas>=2.0
+sqlmodel>=0.0.22
+sqlalchemy>=2.0
+python-dateutil>=2.8
+python-dotenv>=1.0
