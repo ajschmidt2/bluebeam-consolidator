@@ -17,6 +17,7 @@ class Project(SQLModel, table=True):
 
 
 class Milestone(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(index=True)
     name: str
@@ -25,6 +26,7 @@ class Milestone(SQLModel, table=True):
 
 
 class ImportBatch(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     project_id: int = Field(index=True)
     milestone_id: int = Field(index=True)
@@ -34,6 +36,7 @@ class ImportBatch(SQLModel, table=True):
 
 
 class CommentItem(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
 
     project_id: int = Field(index=True)
@@ -65,6 +68,7 @@ class CommentItem(SQLModel, table=True):
 
 
 class AppSetting(SQLModel, table=True):
+    __table_args__ = {"extend_existing": True}
     id: Optional[int] = Field(default=None, primary_key=True)
     key: str = Field(index=True, unique=True)
     value: str
