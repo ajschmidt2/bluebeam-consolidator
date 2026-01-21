@@ -6,23 +6,34 @@ from typing import Optional
 
 from sqlmodel import SQLModel, Field
 
+
 class Project(SQLModel, table=True):
     __tablename__ = "project"
     __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
+
+    # Project info
     name: str = Field(index=True)
+    client: Optional[str] = Field(default=None)
+    location: Optional[str] = Field(default=None)
+
+    # Workflow
     is_active: bool = Field(default=True, index=True)
+
     created_at: datetime = Field(default_factory=datetime.utcnow)
+
 
 class Milestone(SQLModel, table=True):
     __tablename__ = "milestone"
     __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
-    project_id: int = Field(index=True)
 
+    project_id: int = Field(index=True)
     name: str = Field(index=True)
+
+    target_date: Optional[date] = Field(default=None)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
@@ -35,9 +46,9 @@ class Comment(SQLModel, table=True):
     project_id: int = Field(index=True)
     milestone_id: Optional[int] = Field(default=None, index=True)
 
-    discipline: str = Field(default="", index=True)   # A, E, M, etc.
-    sheet: str = Field(default="", index=True)        # Page Label
-    subject: str = Field(default="")                  # Markup subject/type
+    discipline: str = Field(default="", index=True)
+    sheet: str = Field(default="", index=True)
+    subject: str = Field(default="")
     author: str = Field(default="", index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -50,6 +61,6 @@ class Comment(SQLModel, table=True):
     due_date: Optional[date] = Field(default=None)
 
     # AI / categorization fields
-    tag: str = Field(default="", index=True)          # RFI/COORD/etc.
-    risk: str = Field(default="", index=True)         # LOW/MED/HIGH
+    tag: str = Field(default="", index=True)
+    risk: str = Field(default="", index=True)
     required_response: str = Field(default="")
