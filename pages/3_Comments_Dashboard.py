@@ -190,3 +190,22 @@ if item and item.project_id == project_id and (not milestone_id or item.mileston
         st.rerun()
 else:
     st.caption("Enter an ID shown in the table above to edit a single item.")
+from src.llm import triage_comment_cached
+
+if st.button("AI: Triage selected"):
+    for row in selected_rows:
+        result = triage_comment_cached(
+            comment_text=row["comment_text"],
+            sheet=row["sheet"],
+            discipline=row["discipline"],
+            milestone=milestone_name,
+        )
+        # apply to DB (you likely already have an update_comment(...) helper)
+        update_comment(
+            comment_id=row["id"],
+            tracked=result["track"],
+            tags=result["tag"],
+            risk=result["risk"],
+            required_response=result["required_response"],
+        )
+    st.success("AI triage applied.")
