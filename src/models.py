@@ -7,9 +7,6 @@ from typing import Optional
 from sqlmodel import SQLModel, Field
 
 
-# -----------------------------
-# App Settings (key/value store)
-# -----------------------------
 class AppSetting(SQLModel, table=True):
     __tablename__ = "app_setting"
     __table_args__ = {"extend_existing": True}
@@ -19,9 +16,6 @@ class AppSetting(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# -----------------------------
-# Projects / Milestones
-# -----------------------------
 class Project(SQLModel, table=True):
     __tablename__ = "project"
     __table_args__ = {"extend_existing": True}
@@ -49,9 +43,6 @@ class Milestone(SQLModel, table=True):
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 
-# -----------------------------
-# Import batch (tracks each CSV upload)
-# -----------------------------
 class ImportBatch(SQLModel, table=True):
     __tablename__ = "import_batch"
     __table_args__ = {"extend_existing": True}
@@ -68,9 +59,6 @@ class ImportBatch(SQLModel, table=True):
     row_count: int = Field(default=0)
 
 
-# -----------------------------
-# Imported comment rows (raw-ish)
-# -----------------------------
 class CommentItem(SQLModel, table=True):
     __tablename__ = "comment_item"
     __table_args__ = {"extend_existing": True}
@@ -93,12 +81,10 @@ class CommentItem(SQLModel, table=True):
     markup_id: Optional[str] = Field(default=None)
     status_raw: Optional[str] = Field(default=None)
 
-    # IMPORTANT: your import page expects this exact field name
+    # IMPORTANT: Import page uses this for dedupe
     source_row_hash: str = Field(default="", index=True)
 
-# -----------------------------
-# Consolidated working table (used by Dashboard)
-# -----------------------------
+
 class Comment(SQLModel, table=True):
     __tablename__ = "comment"
     __table_args__ = {"extend_existing": True}
@@ -124,5 +110,3 @@ class Comment(SQLModel, table=True):
     tag: str = Field(default="", index=True)
     risk: str = Field(default="", index=True)
     required_response: str = Field(default="")
-
-    fingerprint: str = Field(default="", index=True)
