@@ -1,25 +1,23 @@
+# src/settings.py
 from __future__ import annotations
-
-from typing import Optional
 
 from sqlmodel import select
 
-from .db import session_scope
-from .models import AppSetting
+from src.db import session_scope
+from src.models import AppSetting
 
 
-def get_setting(key: str) -> Optional[str]:
+def get_setting(key: str, default: str = "") -> str:
     with session_scope() as s:
-        row = s.exec(select(AppSetting).where(AppSetting.key == key)).first()
-        return row.value if row else None
+        row = s.get(AppSetting, key)
+        return row.value if row else default
 
 
 def set_setting(key: str, value: str) -> None:
     with session_scope() as s:
-        row = s.exec(select(AppSetting).where(AppSetting.key == key)).first()
+        row = s.get(AppSetting, key)
         if row:
             row.value = value
         else:
             row = AppSetting(key=key, value=value)
-            s.add(row)
-        s.commit()
+        s.add(row)
