@@ -1,97 +1,135 @@
 # src/llm.py
+from __future__ import annotations
+
 import json
-import os
-from dataclasses import dataclass
-from typing import Any, Dict, Optional
+import re
+from typing import Dict, Any
 
 import streamlit as st
+
+# IMPORTANT:
+# This implementation uses Chat Completions for maximum compatibility
+# with OpenAI python versions commonly used on Streamlit Cloud.
 from openai import OpenAI
 
 
-@dataclass
-class TriageResult:
-    track: bool
-    tag: str          # RFI / DECISION / COORD / CODE / COST / SCHED / QA / OTHER
-    risk: str         # LOW / MED / HIGH
-    required_response: str
+def _normalize_risk(r: str) -> str:
+    r = (r or "").strip().upper()
+    if r in {"LOW", "MED", "MEDIUM", "HIGH"}:
+        return "MED" if r == "MEDIUM" else r
+    return ""
 
 
-def _get_client() -> OpenAI:
-    # Prefer Streamlit secrets; fall back to env var
-    api_key = None
-    if hasattr(st, "secrets") and "OPENAI_API_KEY" in st.secrets:
-        api_key = st.secrets["OPENAI_API_KEY"]
-    api_key = api_key or os.environ.get("OPENAI_API_KEY")
-
-    if not api_key:
-        raise RuntimeError("Missing OPENAI_API_KEY. Add it to Streamlit Secrets.")
-
-    return OpenAI(api_key=api_key)
+def _normalize_tag(t: str) -> str:
+    t = (t or "").strip().upper()
+    # Keep it simple but consistent
+    allowed = {
+        "RFI", "COORD", "CODE", "SCOPE", "COST", "SCHEDULE",
+        "CLASH", "SITE", "MEP", "ARCH", "STRUCT", "CIVIL",
+        "QAQC", "SUBMITTAL", "OWNER", "OTHER"
+    }
+    return t if t in allowed else "OTHER"
 
 
-def _get_model() -> str:
-    if hasattr(st, "secrets") and "OPENAI_MODEL" in st.secrets:
-        return st.secrets["OPENAI_MODEL"]
-    return os.environ.get("OPENAI_MODEL", "gpt-5.2")
+def _safe_json_from_text(text: str) -> Dict[str, Any]:
+    """
+    Extract the first JSON object from a model response.
+    """
+    if not text:
+        return {}
+    # Try direct parse first
+    try:
+        return json.loads(text)
+    except Exception:
+        pass
+
+    # Try to extract a JSON object from mixed text
+    m = re.search(r"\{.*\}", text, flags=re.DOTALL)
+    if not m:
+        return {}
+    try:
+        return json.loads(m.group(0))
+    except Exception:
+        return {}
 
 
 @st.cache_data(show_spinner=False)
 def triage_comment_cached(
     comment_text: str,
-    sheet: str,
-    discipline: str,
-    milestone: str,
+    discipline: str = "",
+    sheet: str = "",
+    subject: str = "",
+    milestone: str = "",
+    model: str = "gpt-4o-mini",
 ) -> Dict[str, Any]:
     """
-    Cached so the same comment doesn't cost you twice.
-    Cache key is based on function args.
-    """
-    client = _get_client()
-    model = _get_model()
+    Returns a dict with:
+      - tag: short category (RFI/COORD/CODE/etc.)
+      - risk: LOW/MED/HIGH
+      - required_response: one sentence describing the ask
+      - owner: suggested owner role
+      - status: suggested status (Open by default)
 
-    # Keep prompts tight to keep cost down
-    instructions = (
-        "You help a real estate development manager triage drawing review comments. "
-        "Return ONLY valid JSON matching the schema. Be concise."
+    Safe defaults if API key missing.
+    """
+
+    api_key = st.secrets.get("OPENAI_API_KEY", "").strip()
+    if not api_key:
+        # No AI if no key
+        return {
+            "tag": "",
+            "risk": "",
+            "required_response": "",
+            "owner": "",
+            "status": "Open",
+        }
+
+    client = OpenAI(api_key=api_key)
+
+    system = (
+        "You are a construction/design review assistant. "
+        "You triage review comments into concise structured metadata. "
+        "Return ONLY valid JSON with keys: tag, risk, required_response, owner, status."
     )
 
-    # Ask for a strict JSON object
-    schema = {
-        "type": "object",
-        "properties": {
-            "track": {"type": "boolean"},
-            "tag": {
-                "type": "string",
-                "enum": ["RFI", "DECISION", "COORD", "CODE", "COST", "SCHED", "QA", "OTHER"],
-            },
-            "risk": {"type": "string", "enum": ["LOW", "MED", "HIGH"]},
-            "required_response": {"type": "string"},
-        },
-        "required": ["track", "tag", "risk", "required_response"],
-        "additionalProperties": False,
+    user = {
+        "discipline": discipline or "",
+        "sheet": sheet or "",
+        "subject": subject or "",
+        "milestone": milestone or "",
+        "comment_text": comment_text or "",
+        "instructions": (
+            "tag should be one of: RFI, COORD, CODE, SCOPE, COST, SCHEDULE, CLASH, QAQC, SUBMITTAL, OWNER, OTHER. "
+            "risk must be LOW, MED, or HIGH. "
+            "required_response must be a single sentence describing what must be done/answered. "
+            "owner should be a role like Architect, Civil, Structural, MEP, Owner, GC, Consultant. "
+            "status should be Open unless clearly resolved."
+        ),
     }
 
-    input_text = (
-        f"Discipline: {discipline}\n"
-        f"Sheet: {sheet}\n"
-        f"Milestone: {milestone}\n"
-        f"Comment: {comment_text}\n"
-        "\nDecide whether to TRACK this, assign a TAG + RISK, and rewrite a clear REQUIRED RESPONSE."
-    )
-
-    # Responses API is the recommended interface for new projects. :contentReference[oaicite:3]{index=3}
-    resp = client.responses.create(
+    # Chat Completions call (compatible)
+    resp = client.chat.completions.create(
         model=model,
-        instructions=instructions,
-        input=input_text,
-        # "Structured Outputs" style: require JSON. If your SDK/model doesn’t support
-        # this exact parameter, we can fall back to JSON-only prompting.
-        response_format={
-            "type": "json_schema",
-            "json_schema": {"name": "triage_result", "schema": schema},
-        },
+        messages=[
+            {"role": "system", "content": system},
+            {"role": "user", "content": json.dumps(user)},
+        ],
+        temperature=0.2,
     )
 
-    # The SDK provides output_text for the combined text output. :contentReference[oaicite:4]{index=4}
-    raw = resp.output_text.strip()
-    return json.loads(raw)
+    text = resp.choices[0].message.content if resp and resp.choices else ""
+    data = _safe_json_from_text(text)
+
+    tag = _normalize_tag(data.get("tag", ""))
+    risk = _normalize_risk(data.get("risk", ""))
+    required_response = (data.get("required_response") or "").strip()
+    owner = (data.get("owner") or "").strip()
+    status = (data.get("status") or "Open").strip() or "Open"
+
+    return {
+        "tag": tag,
+        "risk": risk,
+        "required_response": required_response,
+        "owner": owner,
+        "status": status,
+    }
