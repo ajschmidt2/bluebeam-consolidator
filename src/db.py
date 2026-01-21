@@ -36,3 +36,15 @@ def init_db() -> None:
 def session_scope() -> Generator[Session, None, None]:
     with Session(ENGINE) as session:
         yield session
+
+import streamlit as st
+from sqlmodel import SQLModel, create_engine
+
+@st.cache_resource
+def get_engine():
+    return create_engine("sqlite:///app.db", echo=False)
+
+def init_db():
+    engine = get_engine()
+    SQLModel.metadata.create_all(engine)
+    return engine
