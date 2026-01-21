@@ -6,14 +6,13 @@ from typing import Optional
 
 from sqlmodel import SQLModel, Field
 
-
 class Project(SQLModel, table=True):
     __tablename__ = "project"
     __table_args__ = {"extend_existing": True}
 
     id: Optional[int] = Field(default=None, primary_key=True)
     name: str = Field(index=True)
-    is_active: bool = Field(default=True, index=True)  # ← add this
+    is_active: bool = Field(default=True, index=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Milestone(SQLModel, table=True):
