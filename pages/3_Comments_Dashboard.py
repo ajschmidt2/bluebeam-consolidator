@@ -7,6 +7,8 @@ from src.auth import require_login
 from src.db import init_db, session_scope
 from src.models import Project, Milestone, CommentItem
 
+selected_rows = []
+
 st.set_page_config(page_title="Dashboard", layout="wide")
 init_db()
 require_login()
