@@ -93,8 +93,8 @@ class CommentItem(SQLModel, table=True):
     markup_id: Optional[str] = Field(default=None)
     status_raw: Optional[str] = Field(default=None)
 
-    fingerprint: str = Field(default="", index=True)
-
+    # IMPORTANT: your import page expects this exact field name
+    source_row_hash: str = Field(default="", index=True)
 
 # -----------------------------
 # Consolidated working table (used by Dashboard)
