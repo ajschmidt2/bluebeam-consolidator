@@ -8,6 +8,18 @@ from sqlmodel import SQLModel, Field
 
 
 # -----------------------------
+# App Settings (key/value store)
+# -----------------------------
+class AppSetting(SQLModel, table=True):
+    __tablename__ = "app_setting"
+    __table_args__ = {"extend_existing": True}
+
+    key: str = Field(primary_key=True)
+    value: str = Field(default="")
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+# -----------------------------
 # Projects / Milestones
 # -----------------------------
 class Project(SQLModel, table=True):
@@ -58,7 +70,6 @@ class ImportBatch(SQLModel, table=True):
 
 # -----------------------------
 # Imported comment rows (raw-ish)
-# Your Import page expects CommentItem; keep it.
 # -----------------------------
 class CommentItem(SQLModel, table=True):
     __tablename__ = "comment_item"
@@ -78,12 +89,10 @@ class CommentItem(SQLModel, table=True):
 
     comment_text: str = Field(default="")
 
-    # Optional fields that may exist in Bluebeam exports
     page_index: Optional[int] = Field(default=None)
     markup_id: Optional[str] = Field(default=None)
     status_raw: Optional[str] = Field(default=None)
 
-    # Dedupe helper (fingerprint/hash)
     fingerprint: str = Field(default="", index=True)
 
 
@@ -107,16 +116,13 @@ class Comment(SQLModel, table=True):
 
     comment_text: str = Field(default="")
 
-    # workflow fields
     status: str = Field(default="Open", index=True)
     tracked: bool = Field(default=False, index=True)
     owner: str = Field(default="")
     due_date: Optional[date] = Field(default=None)
 
-    # AI / categorization fields
     tag: str = Field(default="", index=True)
     risk: str = Field(default="", index=True)
     required_response: str = Field(default="")
 
-    # Dedupe helper
     fingerprint: str = Field(default="", index=True)
